@@ -1,0 +1,41 @@
+<h2>Lista de Productos</h2>
+
+<div class="products-container">
+  {{#each products}}
+    <div class="product-card">
+      <h3>{{this.title}}</h3>
+
+      {{#if this.thumbnails.[0]}}
+        <img src="{{this.thumbnails.[0]}}" alt="{{this.title}}" />
+      {{else}}
+        <p><em>Sin imagen disponible</em></p>
+      {{/if}}
+
+      <p><strong>Precio:</strong> ${{this.price}}</p>
+      <p><strong>Stock:</strong> {{this.stock}}</p>
+
+      <!-- Enlace a la vista de detalle -->
+      <a href="/products/{{this._id}}">Ver detalle</a>
+
+      <!-- Formulario para agregar directamente al carrito -->
+      <form action="/api/carts/682582878f14fb618c8369c5/products/{{this._id}}" method="POST">
+        <label for="quantity-{{@index}}">Cantidad:</label>
+        <input type="number" name="quantity" id="quantity-{{@index}}" min="1" value="1" required />
+        <button type="submit">Agregar al carrito</button>
+      </form>
+    </div>
+  {{/each}}
+</div>
+
+<!-- Navegación de paginado -->
+<div class="pagination">
+  {{#if hasPrevPage}}
+    <a href="{{prevLink}}">Anterior</a>
+  {{/if}}
+
+  <span>Página {{page}} de {{totalPages}}</span>
+
+  {{#if hasNextPage}}
+    <a href="{{nextLink}}">Siguiente</a>
+  {{/if}}
+</div>

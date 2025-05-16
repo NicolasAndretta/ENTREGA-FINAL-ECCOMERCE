@@ -1,0 +1,23 @@
+<h2>{{product.title}}</h2>
+
+<div class="product-detail">
+  {{#if product.thumbnails.[0]}}
+    <img src="{{product.thumbnails.[0]}}" alt="{{product.title}}" />
+  {{else}}
+    <p><em>Sin imagen disponible</em></p>
+  {{/if}}
+
+  <p><strong>Descripción:</strong> {{product.description}}</p>
+  <p><strong>Precio:</strong> ${{product.price}}</p>
+  <p><strong>Stock disponible:</strong> {{product.stock}}</p>
+
+  <!-- Formulario para agregar al carrito -->
+  <form action="/api/carts/682582878f14fb618c8369c5/products/{{product._id}}" method="POST">
+    <label for="quantity">Cantidad:</label>
+    <input type="number" name="quantity" id="quantity" min="1" value="1" required />
+    <button type="submit">Agregar al carrito</button>
+  </form>
+
+  <br />
+  <a href="/products">⬅ Volver a la lista</a>
+</div>

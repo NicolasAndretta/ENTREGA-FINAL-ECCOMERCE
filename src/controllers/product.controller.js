@@ -3,47 +3,64 @@ import { ProductModel } from '../models/product.model.js'
 // Obtener todos los productos con paginación, filtros y ordenamiento
 export const getAllProducts = async (req, res) => {
   try {
+    // Extracción y parsing de parámetros
     const {
       limit = 10,
       page = 1,
       sort,
-      query
+      category,
+      status
     } = req.query
 
     const filtro = {}
 
-    if (query) {
-      if (query === 'true' || query === 'false') {
-        filtro.status = query === 'true'
-      } else {
-        filtro.category = query
-      }
+    // Filtro por categoría
+    if (category) {
+      filtro.category = category
+    }
+
+    // Filtro por disponibilidad (status)
+    if (status === 'true' || status === 'false') {
+      filtro.status = status === 'true'
     }
 
     let sortOption = {}
+    // Ordenamiento por precio ascendente/descendente
     if (sort === 'asc') sortOption.price = 1
     else if (sort === 'desc') sortOption.price = -1
 
+    // Paginación usando mongoose-paginate-v2
     const result = await ProductModel.paginate(
       filtro,
       {
         limit: parseInt(limit),
         page: parseInt(page),
-        sort: sortOption,
+        sort: Object.keys(sortOption).length > 0 ? sortOption : undefined,
         lean: true
       }
     )
 
-    const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}`
+    // Armado de URLs base para paginación
+    const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl || req.path}`.replace(/\/$/, '')
 
+    // Generación de cadena de parámetros actuales (sin page)
+    const paramString = [
+      limit ? `limit=${limit}` : '',
+      sort ? `sort=${sort}` : '',
+      category ? `category=${category}` : '',
+      (status === 'true' || status === 'false') ? `status=${status}` : ''
+    ].filter(Boolean).join('&')
+
+    // prevLink y nextLink en formato requerido
     const prevLink = result.hasPrevPage
-      ? `${baseUrl}?page=${result.prevPage}&limit=${limit}${sort ? `&sort=${sort}` : ''}${query ? `&query=${query}` : ''}`
+      ? `${baseUrl}?page=${result.prevPage}${paramString ? `&${paramString}` : ''}`
       : null
 
     const nextLink = result.hasNextPage
-      ? `${baseUrl}?page=${result.nextPage}&limit=${limit}${sort ? `&sort=${sort}` : ''}${query ? `&query=${query}` : ''}`
+      ? `${baseUrl}?page=${result.nextPage}${paramString ? `&${paramString}` : ''}`
       : null
 
+    // Respuesta exacta según consigna
     res.status(200).json({
       status: 'success',
       payload: result.docs,
@@ -62,7 +79,7 @@ export const getAllProducts = async (req, res) => {
   }
 }
 
-// Obtener un producto por ID
+// (el resto del archivo queda igual)
 export const getProductById = async (req, res) => {
   try {
     const product = await ProductModel.findById(req.params.pid).lean()
@@ -75,12 +92,16 @@ export const getProductById = async (req, res) => {
   }
 }
 
-// Crear un nuevo producto
 export const createProduct = async (req, res) => {
   try {
     const { code } = req.body
     if (!code) {
       return res.status(400).json({ status: 'error', message: 'El campo code es obligatorio y único' })
+    }
+
+    const exists = await ProductModel.findOne({ code })
+    if (exists) {
+      return res.status(409).json({ status: 'error', message: 'Ya existe un producto con ese código' })
     }
 
     const nuevoProducto = await ProductModel.create(req.body)
@@ -90,7 +111,6 @@ export const createProduct = async (req, res) => {
   }
 }
 
-// Actualizar un producto
 export const updateProduct = async (req, res) => {
   try {
     const updated = await ProductModel.findByIdAndUpdate(
@@ -109,7 +129,6 @@ export const updateProduct = async (req, res) => {
   }
 }
 
-// Eliminar un producto
 export const deleteProduct = async (req, res) => {
   try {
     const deleted = await ProductModel.findByIdAndDelete(req.params.pid)

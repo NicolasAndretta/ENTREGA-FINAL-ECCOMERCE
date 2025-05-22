@@ -1,5 +1,4 @@
-// src/dao/productManager.mongo.js
-import mongoose from 'mongoose' // 👉 Agregado
+import mongoose from 'mongoose' 
 import { ProductModel } from '../models/product.model.js'
 
 class ProductManagerMongo {

@@ -1,12 +1,18 @@
 import { Router } from 'express'
-import { ProductModel } from './models/Product.model.js'
+import { ProductModel } from '../models/product.model.js'
+import { CartModel } from '../models/cart.model.js'
 
 const router = Router()
 
-// Vista general de productos con paginación
+// Redirigir la raíz a /products
+router.get('/', (req, res) => {
+  res.redirect('/products')
+})
+
+// Vista general de productos con paginación, filtros y orden
 router.get('/products', async (req, res) => {
   try {
-    const { limit = 10, page = 1, sort, query } = req.query
+    const { limit = 10, page = 1, sort, category, status } = req.query
 
     const options = {
       limit: parseInt(limit),
@@ -16,20 +22,32 @@ router.get('/products', async (req, res) => {
 
     if (sort) options.sort = { price: sort === 'asc' ? 1 : -1 }
 
-    const filters = {}
-    if (query) {
-      filters.$or = [
-        { category: { $regex: query, $options: 'i' } },
-        { title: { $regex: query, $options: 'i' } },
-      ]
+    // Filtros por categoría y disponibilidad (status)
+    let filters = {}
+    if (category) {
+      filters.category = category
+    }
+    if (status === 'true' || status === 'false') {
+      filters.status = status === 'true'
     }
 
     const result = await ProductModel.paginate(filters, options)
 
-    // Armamos links de paginación
-    const baseUrl = '/products?'
-    const prevLink = result.hasPrevPage ? `${baseUrl}page=${result.prevPage}&limit=${limit}` : null
-    const nextLink = result.hasNextPage ? `${baseUrl}page=${result.nextPage}&limit=${limit}` : null
+    // Armado de links de paginación con query params actuales (sin duplicar page)
+    const paramString = [
+      limit ? `limit=${limit}` : '',
+      sort ? `sort=${sort}` : '',
+      category ? `category=${category}` : '',
+      (status === 'true' || status === 'false') ? `status=${status}` : ''
+    ].filter(Boolean).join('&')
+
+    const baseUrl = '/products'
+    const prevLink = result.hasPrevPage
+      ? `${baseUrl}?page=${result.prevPage}${paramString ? `&${paramString}` : ''}`
+      : null
+    const nextLink = result.hasNextPage
+      ? `${baseUrl}?page=${result.nextPage}${paramString ? `&${paramString}` : ''}`
+      : null
 
     res.render('products', {
       products: result.docs,
@@ -41,6 +59,10 @@ router.get('/products', async (req, res) => {
       totalPages: result.totalPages,
       prevLink,
       nextLink,
+      limit,
+      sort,
+      category,
+      status,
       cartId: '682582878f14fb618c8369c5',
     })
   } catch (error) {
@@ -65,6 +87,19 @@ router.get('/products/:pid', async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).send('Error al cargar el detalle del producto.')
+  }
+})
+
+// Vista amigable del carrito
+router.get('/cart', async (req, res) => {
+  const cartId = '682582878f14fb618c8369c5' // <-- Usa lógica de usuario si tienes auth
+  try {
+    const cart = await CartModel.findById(cartId).populate('products.productId').lean()
+    if (!cart) return res.status(404).send('Carrito no encontrado')
+    res.render('cart', { cart })
+  } catch (error) {
+    console.error(error)
+    res.status(500).send('Error al mostrar el carrito.')
   }
 })
 

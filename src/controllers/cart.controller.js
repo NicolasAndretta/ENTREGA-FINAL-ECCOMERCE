@@ -60,7 +60,7 @@ export const addProductToCart = async (req, res) => {
   }
 }
 
-// Actualizar cantidad de un producto en el carrito
+// Actualizar cantidad de un producto en el carrito (PUT /api/carts/:cid/products/:pid)
 export const updateProductQuantity = async (req, res) => {
   try {
     const { cid, pid } = req.params
@@ -88,7 +88,7 @@ export const updateProductQuantity = async (req, res) => {
   }
 }
 
-// Eliminar un producto del carrito
+// Eliminar un producto del carrito (DELETE /api/carts/:cid/products/:pid)
 export const removeProductFromCart = async (req, res) => {
   try {
     const { cid, pid } = req.params
@@ -111,7 +111,7 @@ export const removeProductFromCart = async (req, res) => {
   }
 }
 
-// Vaciar el carrito
+// Vaciar el carrito (DELETE /api/carts/:cid)
 export const emptyCart = async (req, res) => {
   try {
     const { cid } = req.params
@@ -123,6 +123,44 @@ export const emptyCart = async (req, res) => {
     cart.products = []
     await cart.save()
     res.status(200).json({ status: 'success', message: 'Carrito vaciado', payload: cart })
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message })
+  }
+}
+
+// Actualizar todos los productos del carrito (PUT /api/carts/:cid)
+export const updateAllProductsInCart = async (req, res) => {
+  try {
+    const { cid } = req.params
+    const { products } = req.body // [{ productId, quantity }, ...]
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Debes enviar un array de productos' })
+    }
+
+    // Validar existencia y cantidad de cada producto
+    for (const item of products) {
+      if (!item.productId || !item.quantity || item.quantity < 1) {
+        return res.status(400).json({ status: 'error', message: 'Cada producto debe tener productId y cantidad válida' })
+      }
+      const prodExist = await ProductModel.exists({ _id: item.productId })
+      if (!prodExist) {
+        return res.status(404).json({ status: 'error', message: `El producto con id ${item.productId} no existe` })
+      }
+    }
+
+    const cart = await CartModel.findById(cid)
+    if (!cart) {
+      return res.status(404).json({ status: 'error', message: 'Carrito no encontrado' })
+    }
+
+    cart.products = products.map(item => ({
+      productId: item.productId,
+      quantity: item.quantity
+    }))
+    await cart.save()
+
+    res.status(200).json({ status: 'success', message: 'Productos del carrito actualizados', payload: cart })
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message })
   }
